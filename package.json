@@ -1,0 +1,79 @@
+{
+  "name": "@wernerthiago/teo",
+  "version": "1.0.1",
+  "description": "Test Execution Optimizer",
+  "main": "src/cli/index.js",
+  "type": "module",
+  "bin": {
+    "teo": "./src/cli/index.js"
+  },
+  "scripts": {
+    "start": "node src/cli/index.js",
+    "lint": "eslint src tests",
+    "lint:fix": "eslint src --fix",
+    "build": "echo 'No build step required for pure JavaScript'",
+    "dev": "node --inspect src/cli/index.js",
+    "validate": "node src/cli/index.js validate",
+    "demo": "cd examples/demo-project && node ../../src/cli/index.js analyze --base HEAD~1 --head HEAD --no-ai"
+  },
+  "keywords": [
+    "test-automation",
+    "ai",
+    "git-analysis",
+    "playwright",
+    "ci-cd",
+    "test-optimization",
+    "test-selection"
+  ],
+  "author": "Thiago Werner",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.9.1",
+    "@azure/openai": "^1.0.0-beta.8",
+    "@google/generative-ai": "^0.2.1",
+    "axios": "^1.6.2",
+    "chalk": "^5.3.0",
+    "commander": "^11.1.0",
+    "dotenv": "^16.3.1",
+    "execa": "^8.0.1",
+    "glob": "^10.3.10",
+    "js-yaml": "^4.1.0",
+    "lodash": "^4.17.21",
+    "minimatch": "^9.0.3",
+    "openai": "^4.20.1",
+    "ora": "^7.0.1",
+    "simple-git": "^3.20.0",
+    "table": "^6.8.1",
+    "tree-sitter": "^0.20.4",
+    "tree-sitter-javascript": "^0.20.1",
+    "tree-sitter-python": "^0.20.4",
+    "tree-sitter-typescript": "^0.20.3",
+    "winston": "^3.11.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "eslint": "^8.55.0",
+    "eslint-config-standard": "^17.1.0",
+    "eslint-plugin-import": "^2.29.0",
+    "eslint-plugin-n": "^16.4.0",
+    "eslint-plugin-promise": "^6.1.1",
+    "supertest": "^6.3.3"
+  },
+  "eslintConfig": {
+    "extends": [
+      "standard"
+    ],
+    "env": {
+      "node": true,
+      "es2022": true
+    },
+    "parserOptions": {
+      "ecmaVersion": 2022,
+      "sourceType": "module"
+    }
+  }
+}
