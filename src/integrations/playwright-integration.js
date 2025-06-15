@@ -179,8 +179,9 @@ export class PlaywrightIntegration {
     switch (format) {
       case 'paths':
         if (selectedTests.map(test => test.path).join(' ')) {
-          process.env.TEO_TEST_PATHS = selectedTests.map(test => test.path).join(' ')
-          logger.info('TEO_TEST_PATHS environment variable set', {
+          logger.info('Copy and paste the following command to save the paths:')
+          console.log(`export TEO_TEST_PATHS="${selectedTests.map(test => test.path).join(' ')}"`)
+          logger.info('TEO_TEST_PATHS environment variable must be set', {
             tests: selectedTests.map(test => test.path)
           })
         }

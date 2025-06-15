@@ -96,8 +96,12 @@ program
     if (globalOpts.verbose) {
       logger.level = 'debug'
     }
+
+    if (globalOpts.quiet && !globalOpts.verbose) {
+      logger.level = 'quiet'
+    }
     
-    const spinner = ora('Analyzing code changes...').start()
+    const spinner = ora('Analyzing code changes...', { isSilent: globalOpts.quiet }).start()
     
     try {
       // Load configuration

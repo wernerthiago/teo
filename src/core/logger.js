@@ -4,7 +4,6 @@
  */
 
 import winston from 'winston'
-import path from 'path'
 
 const { combine, timestamp, errors, json, printf, colorize } = winston.format
 
@@ -14,6 +13,11 @@ const consoleFormat = printf(({ level, message, timestamp, ...meta }) => {
   
   if (Object.keys(meta).length > 0) {
     output += ` ${JSON.stringify(meta)}`
+  }
+
+  if (level === 'quiet') {
+    // Quiet level logs should not output anything
+    return ''
   }
   
   return output
