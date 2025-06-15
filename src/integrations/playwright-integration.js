@@ -178,7 +178,13 @@ export class PlaywrightIntegration {
     
     switch (format) {
       case 'paths':
-        return selectedTests.map(test => test.path).join('\n')
+        if (selectedTests.map(test => test.path).join(' ')) {
+          process.env.TEO_TEST_PATHS = selectedTests.map(test => test.path).join(' ')
+          logger.info('TEO_TEST_PATHS environment variable set', {
+            tests: selectedTests.map(test => test.path)
+          })
+        }
+        return selectedTests.map(test => test.path).join(' ')
       
       case 'script':
         return this.generateScript(selectedTests, summary)
