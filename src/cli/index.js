@@ -161,7 +161,7 @@ program
   .option('--framework <name>', 'Validate specific framework only')
   .action(async (options) => {
     const globalOpts = program.opts()
-    const spinner = ora('Validating TEO setup...').start()
+    const spinner = ora('Validating TEO setup...', { isSilent: globalOpts.quiet }).start()
     
     try {
       const config = await TEOConfig.fromFile(globalOpts.config)
@@ -204,7 +204,7 @@ program
   .option('--no-ai', 'Disable AI-enhanced analysis')
   .action(async (options) => {
     const globalOpts = program.opts()
-    const spinner = ora('Generating test execution script...').start()
+    const spinner = ora('Generating test execution script...', { isSilent: globalOpts.quiet }).start()
     
     try {
       const config = await TEOConfig.fromFile(globalOpts.config)
