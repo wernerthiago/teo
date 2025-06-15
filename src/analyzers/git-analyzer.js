@@ -454,7 +454,7 @@ export class GitDiffAnalyzer {
    */
   async resolveRef(ref) {
     try {
-      console.debug(`Resolving reference: ${ref} from repository: ${this.repoPath}`)
+      logger.debug(`Resolving reference: ${ref} from repository: ${this.repoPath}`)
       const result = await this.git.revparse([ref])
       return result.trim()
     } catch (error) {
