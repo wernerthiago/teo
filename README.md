@@ -157,7 +157,7 @@ script {
 
 ## 📚 **Documentation**
 
-- **[Complete v2.0 Guide](docs/v2-complete-guide.md)**: Comprehensive documentation
+- **[Complete Guide](docs/complete-guide.md)**: Comprehensive documentation
 - **[Playwright Integration Research](docs/playwright-integration-research.md)**: Technical details
 - **[Demo Project README](examples/demo-project/README.md)**: Working example
 
