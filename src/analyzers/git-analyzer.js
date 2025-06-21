@@ -9,7 +9,7 @@ import JavaScript from 'tree-sitter-javascript'
 import TypeScript from 'tree-sitter-typescript'
 import Python from 'tree-sitter-python'
 import path from 'path'
-import fs from 'fs'
+import fs from 'fs-extra' // Added fs-extra
 import logger from '../core/logger.js'
 
 // Change types enum
@@ -96,15 +96,73 @@ export class DiffAnalysisResult {
  * Git Diff Analyzer class
  */
 export class GitDiffAnalyzer {
-  constructor(repoPath = '.') {
-    this.repoPath = path.resolve(repoPath)
-    this.git = simpleGit(this.repoPath)
+  constructor(gitConfig, basePath = '.') {
     this.parsers = new Map()
-    
-    // Initialize tree-sitter parsers
+    // Initialize tree-sitter parsers early, they don't depend on repoPath
     this.initializeParsers()
+
+    // Async operations cannot be in constructor, so we need an async init method
+    // For now, let's log this constraint. The actual cloning/fetching will need to be
+    // part of a separate async initialization method.
+    // This is a significant refactoring from the original plan.
+    // For this step, we will set up the logic flow but acknowledge that
+    // simple-git operations need to be async.
+
+    if (gitConfig && gitConfig.remote_repository_url) {
+      const repoName = path.basename(gitConfig.remote_repository_url, '.git');
+      const tempRepoPath = path.resolve(basePath, '.teo_cache', 'remote_repos', repoName);
+      logger.info(`Remote repository specified. Using temporary path: ${tempRepoPath}`, { url: gitConfig.remote_repository_url });
+
+      // Synchronous directory creation
+      try {
+        fs.ensureDirSync(tempRepoPath);
+      } catch (err) {
+        logger.error(`Failed to create directory for remote repository: ${tempRepoPath}`, { error: err.message });
+        // Decide how to handle this critical failure. For now, throw.
+        throw new Error(`Failed to create directory for remote repository: ${err.message}`);
+      }
+
+      this.repoPath = tempRepoPath;
+      // Initialize git here, but actual clone/fetch needs to be async
+      this.git = simpleGit();
+      logger.info('Git operations for remote repo will be handled by an async init method.');
+      // Placeholder for where async operations would be triggered:
+      // this.initRemoteRepo(gitConfig.remote_repository_url, tempRepoPath);
+
+    } else {
+      this.repoPath = path.resolve((gitConfig && gitConfig.repo_path) || basePath);
+      this.git = simpleGit(this.repoPath);
+    }
     
-    logger.debug('GitDiffAnalyzer initialized', { repoPath: this.repoPath })
+    logger.debug('GitDiffAnalyzer constructor completed', { repoPath: this.repoPath, remote: !!(gitConfig && gitConfig.remote_repository_url) });
+  }
+
+  // Suggested async initialization method (to be implemented/called appropriately)
+  async initRemoteRepo(remoteUrl, localPath) {
+    logger.info(`Initializing remote repository processing for ${remoteUrl} at ${localPath}`);
+    try {
+      const isRepo = await this.git.cwd(localPath).checkIsRepo('root');
+      let remoteUrlCorrect = false;
+      if (isRepo) {
+        const remotes = await this.git.getRemotes(true);
+        remoteUrlCorrect = remotes.some(remote => remote.name === 'origin' && remote.refs.fetch === remoteUrl);
+      }
+
+      if (isRepo && remoteUrlCorrect) {
+        logger.info(`Fetching latest changes for ${remoteUrl} into ${localPath}`);
+        await this.git.fetch();
+      } else {
+        logger.info(`Cloning ${remoteUrl} into ${localPath}`);
+        await fs.emptyDir(localPath); // Clean before clone
+        await simpleGit().clone(remoteUrl, localPath); // Use a new simpleGit instance for clone
+      }
+      // After clone/fetch, re-initialize this.git to operate within the cloned repo context
+      this.git = simpleGit(localPath);
+      logger.info(`Successfully initialized remote repository at ${localPath}`);
+    } catch (error) {
+      logger.error(`Failed to initialize remote repository ${remoteUrl}`, { error: error.message, localPath });
+      throw error; // Re-throw to indicate failure
+    }
   }
 
   /**

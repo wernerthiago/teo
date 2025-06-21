@@ -12,18 +12,40 @@ import TestOrchestrator from '../integrations/test-orchestrator.js'
 import logger from './logger.js'
 
 export class TEOEngine {
-  constructor(config) {
+  // Constructor is now async
+  async constructor(config) {
     this.config = config
-    this.repoPath = config.get('repo_path', process.cwd())
     
-    // Initialize components
-    this.gitAnalyzer = new GitDiffAnalyzer(this.repoPath)
-    this.featureMapper = new FeatureMapper(this.repoPath, config.config)
+    const gitConfig = config.get('git', {});
+    const basePath = config.get('repo_path', process.cwd()); // Used as fallback for local repo_path or base for temp remote clones
+
+    // Initialize GitDiffAnalyzer
+    this.gitAnalyzer = new GitDiffAnalyzer(gitConfig, basePath);
+
+    // If remote repository is specified, initialize it
+    if (gitConfig.remote_repository_url) {
+      logger.info(`Initializing remote repository: ${gitConfig.remote_repository_url}`);
+      try {
+        // this.gitAnalyzer.repoPath already points to the designated temporary local path
+        await this.gitAnalyzer.initRemoteRepo(gitConfig.remote_repository_url, this.gitAnalyzer.repoPath);
+        logger.info(`Remote repository initialized successfully at ${this.gitAnalyzer.repoPath}`);
+      } catch (error) {
+        logger.error(`Failed to initialize remote repository ${gitConfig.remote_repository_url}: ${error.message}`);
+        // Propagate the error to prevent TEOEngine from operating with a misconfigured gitAnalyzer
+        throw new Error(`Failed to initialize remote repository: ${error.message}`);
+      }
+    }
+
+    // Initialize other components
+    // Note: featureMapper might need to be initialized after gitAnalyzer.repoPath is finalized (especially for remotes)
+    // For now, assuming FeatureMapper uses the repoPath from gitAnalyzer or can be updated if needed.
+    this.featureMapper = new FeatureMapper(this.gitAnalyzer.repoPath, config.config)
     this.providerManager = new ProviderManager(config.get('ai_providers', {}))
     this.testOrchestrator = new TestOrchestrator(config.config)
     
     logger.info('TEOEngine initialized', {
-      repoPath: this.repoPath,
+      repoPath: this.gitAnalyzer.repoPath, // Use the potentially updated repoPath from gitAnalyzer
+      remote: !!gitConfig.remote_repository_url,
       aiProviders: this.providerManager.getAvailableProviders(),
       frameworks: this.testOrchestrator.getAvailableFrameworks()
     })
