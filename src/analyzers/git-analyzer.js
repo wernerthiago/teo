@@ -9,7 +9,7 @@ import JavaScript from 'tree-sitter-javascript'
 import TypeScript from 'tree-sitter-typescript'
 import Python from 'tree-sitter-python'
 import path from 'path'
-import fs from 'fs'
+import fs from 'fs-extra' // Added fs-extra
 import logger from '../core/logger.js'
 
 // Change types enum
@@ -96,15 +96,73 @@ export class DiffAnalysisResult {
  * Git Diff Analyzer class
  */
 export class GitDiffAnalyzer {
-  constructor(repoPath = '.') {
-    this.repoPath = path.resolve(repoPath)
-    this.git = simpleGit(this.repoPath)
+  constructor(gitConfig, basePath = '.') {
     this.parsers = new Map()
-    
-    // Initialize tree-sitter parsers
+    // Initialize tree-sitter parsers early, they don't depend on repoPath
     this.initializeParsers()
+
+    // Async operations cannot be in constructor, so we need an async init method
+    // For now, let's log this constraint. The actual cloning/fetching will need to be
+    // part of a separate async initialization method.
+    // This is a significant refactoring from the original plan.
+    // For this step, we will set up the logic flow but acknowledge that
+    // simple-git operations need to be async.
+
+    if (gitConfig && gitConfig.remote_repository_url) {
+      const repoName = path.basename(gitConfig.remote_repository_url, '.git');
+      const tempRepoPath = path.resolve(basePath, '.teo_cache', 'remote_repos', repoName);
+      logger.info(`Remote repository specified. Using temporary path: ${tempRepoPath}`, { url: gitConfig.remote_repository_url });
+
+      // Synchronous directory creation
+      try {
+        fs.ensureDirSync(tempRepoPath);
+      } catch (err) {
+        logger.error(`Failed to create directory for remote repository: ${tempRepoPath}`, { error: err.message });
+        // Decide how to handle this critical failure. For now, throw.
+        throw new Error(`Failed to create directory for remote repository: ${err.message}`);
+      }
+
+      this.repoPath = tempRepoPath;
+      // Initialize git here, but actual clone/fetch needs to be async
+      this.git = simpleGit();
+      logger.info('Git operations for remote repo will be handled by an async init method.');
+      // Placeholder for where async operations would be triggered:
+      // this.initRemoteRepo(gitConfig.remote_repository_url, tempRepoPath);
+
+    } else {
+      this.repoPath = path.resolve((gitConfig && gitConfig.repo_path) || basePath);
+      this.git = simpleGit(this.repoPath);
+    }
     
-    logger.debug('GitDiffAnalyzer initialized', { repoPath: this.repoPath })
+    logger.debug('GitDiffAnalyzer constructor completed', { repoPath: this.repoPath, remote: !!(gitConfig && gitConfig.remote_repository_url) });
+  }
+
+  // Suggested async initialization method (to be implemented/called appropriately)
+  async initRemoteRepo(remoteUrl, localPath) {
+    logger.info(`Initializing remote repository processing for ${remoteUrl} at ${localPath}`);
+    try {
+      const isRepo = await this.git.cwd(localPath).checkIsRepo('root');
+      let remoteUrlCorrect = false;
+      if (isRepo) {
+        const remotes = await this.git.getRemotes(true);
+        remoteUrlCorrect = remotes.some(remote => remote.name === 'origin' && remote.refs.fetch === remoteUrl);
+      }
+
+      if (isRepo && remoteUrlCorrect) {
+        logger.info(`Fetching latest changes for ${remoteUrl} into ${localPath}`);
+        await this.git.fetch();
+      } else {
+        logger.info(`Cloning ${remoteUrl} into ${localPath}`);
+        await fs.emptyDir(localPath); // Clean before clone
+        await simpleGit().clone(remoteUrl, localPath); // Use a new simpleGit instance for clone
+      }
+      // After clone/fetch, re-initialize this.git to operate within the cloned repo context
+      this.git = simpleGit(localPath);
+      logger.info(`Successfully initialized remote repository at ${localPath}`);
+    } catch (error) {
+      logger.error(`Failed to initialize remote repository ${remoteUrl}`, { error: error.message, localPath });
+      throw error; // Re-throw to indicate failure
+    }
   }
 
   /**
@@ -192,10 +250,18 @@ export class GitDiffAnalyzer {
    * Analyze a single file change
    */
   async analyzeFileChange(fileSummary, baseCommit, headCommit) {
-    const filePath = fileSummary.file
+    // fileSummary.file is relative to repo root. We want CodeChange to store absolute paths.
+    const absoluteFilePath = path.resolve(this.repoPath, fileSummary.file);
+    const absoluteOldPath = fileSummary.oldPath ? path.resolve(this.repoPath, fileSummary.oldPath) : null;
     
     // Determine change type
-    let changeType
+    let changeType;
+    // Check for renamed files. simple-git diffSummary doesn't explicitly mark renames,
+    // but they often appear as a delete of oldPath and add of newPath, or just newPath with oldPath hint.
+    // For now, rely on simple-git's implicit handling or enhance later if specific rename detection is needed.
+    // If fileSummary.file has a history (e.g. through --find-renames), oldPath might be populated.
+    // A true rename might be better represented by a specific ChangeType.RENAMED if summary provides it.
+    // Assuming simple-git's summary handles this by listing the new path.
     if (fileSummary.binary) {
       changeType = ChangeType.MODIFIED
     } else if (fileSummary.insertions > 0 && fileSummary.deletions === 0) {
@@ -207,21 +273,23 @@ export class GitDiffAnalyzer {
     }
     
     const change = new CodeChange({
-      filePath,
+      filePath: absoluteFilePath,
+      oldPath: absoluteOldPath, // Store absolute old path if present
       changeType,
       linesAdded: fileSummary.insertions,
       linesRemoved: fileSummary.deletions
-    })
+    });
     
     // Perform syntax-aware analysis if possible
     if (!fileSummary.binary && changeType !== ChangeType.DELETED) {
       try {
         await this.performSyntaxAnalysis(change, baseCommit, headCommit)
       } catch (error) {
+        // Log with the absolute path for clarity
         logger.debug('Syntax analysis failed for file', { 
-          filePath, 
+          filePath: absoluteFilePath,
           error: error.message 
-        })
+        });
       }
     }
     
@@ -440,12 +508,15 @@ export class GitDiffAnalyzer {
   /**
    * Get file content from specific commit
    */
-  async getFileContent(filePath, commit) {
+  async getFileContent(filePath, commit) { // filePath is expected to be absolute here
     try {
-      const content = await this.git.show([`${commit}:${filePath}`])
-      return content
+      // Convert absolute path to path relative to repo root for git commands
+      const relativePath = path.relative(this.repoPath, filePath);
+      const content = await this.git.show([`${commit}:${relativePath}`]);
+      return content;
     } catch (error) {
-      throw new Error(`Failed to get file content: ${error.message}`)
+      // Add context to error message, including which path failed (absolute for user, relative for debug)
+      throw new Error(`Failed to get file content for ${filePath} (relative: ${path.relative(this.repoPath, filePath)}) from commit ${commit}: ${error.message}`);
     }
   }
 

@@ -345,6 +345,46 @@ logging:
   max_files: 5
 ```
 
+### Git Configuration
+
+The `git` block in your `teo-config.yaml` file allows you to specify how TEO interacts with your Git repository.
+
+```yaml
+git:
+  default_branch: main
+  repo_path: .
+  remote_repository_url: 'https://github.com/your-org/your-repo.git'
+  ignore_patterns:
+    - '*.log'
+    - 'node_modules/**'
+    - '.git/**'
+    - 'dist/**'
+    - 'docs/**'
+```
+
+**Options:**
+
+*   **`default_branch`** (Optional)
+    *   Specifies the default branch of your repository (e.g., `main`, `master`, `develop`).
+    *   TEO might use this for certain analyses or as a fallback if a base reference isn't provided in commands.
+    *   Defaults to `main`.
+
+*   **`repo_path`** (Optional)
+    *   The path to your local Git repository, relative to where TEO is executed.
+    *   This path is used if `remote_repository_url` is **not** specified.
+    *   Defaults to `.` (the current directory).
+
+*   **`remote_repository_url`** (Optional)
+    *   The URL of a remote Git repository (HTTPS or SSH).
+    *   If provided, TEO will clone this repository into a local temporary directory (within `.teo_cache/remote_repos/`) and perform its analysis on the cloned copy.
+    *   This option takes precedence over `repo_path`. If `remote_repository_url` is set, `repo_path` will be ignored for determining the primary analysis target.
+    *   This is useful if your test automation code or the code to be analyzed resides in a repository different from where TEO is being run.
+    *   If omitted, TEO operates on the local repository defined by `repo_path`.
+
+*   **`ignore_patterns`** (Optional)
+    *   An array of glob patterns specifying files or directories that TEO's Git analysis should ignore.
+    *   This can be useful for excluding generated files, build artifacts, or other non-source files from consideration during diff analysis.
+    *   The patterns are typically applied when determining changed files. Common examples include `*.log`, `node_modules/**`, `.git/**`, and `dist/**`.
 
 ## 💡 **Usage Examples**
 

@@ -57,7 +57,8 @@ const TEOConfigSchema = z.object({
   
   git: z.object({
     default_branch: z.string().default('main'),
-    ignore_patterns: z.array(z.string()).default([])
+    ignore_patterns: z.array(z.string()).default([]),
+    remote_repository_url: z.string().url().optional()
   }).optional(),
   
   feature_detection: z.object({

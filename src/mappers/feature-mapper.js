@@ -65,9 +65,10 @@ export class ImpactedFeature {
  * Base class for mapping strategies
  */
 class BaseMappingStrategy {
-  constructor(config = {}) {
-    this.config = config
-    this.weight = config.weight || 1.0
+  constructor(config = {}, repoPath) {
+    this.config = config;
+    this.repoPath = repoPath; // Store repoPath
+    this.weight = config.weight || 1.0;
     this.enabled = config.enabled !== false
   }
 
@@ -81,6 +82,10 @@ class BaseMappingStrategy {
  * Maps based on directory structure patterns
  */
 class FolderBasedStrategy extends BaseMappingStrategy {
+  constructor(config, repoPath) {
+    super(config, repoPath);
+  }
+
   async mapChangesToFeatures(diffResult, existingMappings = {}) {
     const features = []
     
@@ -167,8 +172,9 @@ class FolderBasedStrategy extends BaseMappingStrategy {
       for (const pattern of patterns) {
         try {
           const { glob } = await import('glob')
-          const matches = await glob(pattern, { cwd: process.cwd() })
-          testFiles.push(...matches)
+          // Use this.repoPath for cwd
+          const matches = await glob(pattern, { cwd: this.repoPath, absolute: true, nodir: true })
+          testFiles.push(...matches.map(p => path.relative(this.repoPath, p))); // Store relative paths for consistency if desired, or keep absolute
         } catch (error) {
           logger.debug('Glob pattern failed', { pattern, error: error.message })
         }
@@ -184,6 +190,10 @@ class FolderBasedStrategy extends BaseMappingStrategy {
  * Uses explicit configuration files for mapping
  */
 class FileBasedStrategy extends BaseMappingStrategy {
+  constructor(config, repoPath) {
+    super(config, repoPath);
+  }
+
   async mapChangesToFeatures(diffResult, existingMappings = {}) {
     const features = []
     
@@ -219,8 +229,9 @@ class FileBasedStrategy extends BaseMappingStrategy {
     for (const pattern of patterns) {
       try {
         const { glob } = await import('glob')
-        const matches = await glob(pattern, { cwd: process.cwd() })
-        testFiles.push(...matches)
+        // Use this.repoPath for cwd
+        const matches = await glob(pattern, { cwd: this.repoPath, absolute: true, nodir: true })
+        testFiles.push(...matches.map(p => path.relative(this.repoPath, p))); // Store relative paths
       } catch (error) {
         logger.debug('Test pattern resolution failed', { pattern, error: error.message })
       }
@@ -235,8 +246,8 @@ class FileBasedStrategy extends BaseMappingStrategy {
  * Reads feature annotations from source code
  */
 class AnnotationBasedStrategy extends BaseMappingStrategy {
-  constructor(config = {}) {
-    super(config)
+  constructor(config = {}, repoPath) {
+    super(config, repoPath);
     this.annotationPatterns = config.patterns || [
       /@feature:\s*(\w+)/gi,
       /\/\/\s*Feature:\s*(\w+)/gi,
@@ -305,8 +316,9 @@ class AnnotationBasedStrategy extends BaseMappingStrategy {
     for (const pattern of patterns) {
       try {
         const { glob } = await import('glob')
-        const matches = await glob(pattern, { cwd: process.cwd() })
-        testFiles.push(...matches)
+        // Use this.repoPath for cwd
+        const matches = await glob(pattern, { cwd: this.repoPath, absolute: true, nodir: true })
+        testFiles.push(...matches.map(p => path.relative(this.repoPath, p))); // Store relative paths
       } catch (error) {
         logger.debug('Test file search failed', { pattern, error: error.message })
       }
@@ -321,6 +333,10 @@ class AnnotationBasedStrategy extends BaseMappingStrategy {
  * Uses syntax tree analysis for intelligent mapping
  */
 class ASTBasedStrategy extends BaseMappingStrategy {
+  constructor(config, repoPath) {
+    super(config, repoPath);
+  }
+
   async mapChangesToFeatures(diffResult, existingMappings = {}) {
     const features = []
     
@@ -400,8 +416,9 @@ class ASTBasedStrategy extends BaseMappingStrategy {
     for (const pattern of patterns) {
       try {
         const { glob } = await import('glob')
-        const matches = await glob(pattern, { cwd: process.cwd() })
-        testFiles.push(...matches)
+        // Use this.repoPath for cwd
+        const matches = await glob(pattern, { cwd: this.repoPath, absolute: true, nodir: true })
+        testFiles.push(...matches.map(p => path.relative(this.repoPath, p))); // Store relative paths
       } catch (error) {
         logger.debug('Symbol test search failed', { pattern, error: error.message })
       }
@@ -438,16 +455,16 @@ export class FeatureMapper {
       let strategy
       switch (strategyConfig.type) {
         case MappingStrategy.FOLDER_BASED:
-          strategy = new FolderBasedStrategy(strategyConfig)
+          strategy = new FolderBasedStrategy(strategyConfig, this.repoPath)
           break
         case MappingStrategy.FILE_BASED:
-          strategy = new FileBasedStrategy(strategyConfig)
+          strategy = new FileBasedStrategy(strategyConfig, this.repoPath)
           break
         case MappingStrategy.ANNOTATION_BASED:
-          strategy = new AnnotationBasedStrategy(strategyConfig)
+          strategy = new AnnotationBasedStrategy(strategyConfig, this.repoPath)
           break
         case MappingStrategy.AST_BASED:
-          strategy = new ASTBasedStrategy(strategyConfig)
+          strategy = new ASTBasedStrategy(strategyConfig, this.repoPath)
           break
         default:
           logger.warn('Unknown mapping strategy', { type: strategyConfig.type })
