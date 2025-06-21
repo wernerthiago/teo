@@ -93,8 +93,9 @@ describe('TEOEngine', () => {
         expect(engine.gitAnalyzer).toBeDefined();
         expect(FeatureMapper).toHaveBeenCalledTimes(1);
         expect(TestOrchestrator).toHaveBeenCalledTimes(1);
-        // Check if featureMapper was called with the correct repoPath from gitAnalyzer
+        // Check if featureMapper and testOrchestrator were called with the correct repoPath from gitAnalyzer
         expect(FeatureMapper).toHaveBeenCalledWith(currentMockAnalyzerInstance.repoPath, localConfig.config);
+        expect(TestOrchestrator).toHaveBeenCalledWith(localConfig.config, currentMockAnalyzerInstance.repoPath);
     });
 
     test('should successfully create with a remote repository configuration', async () => {
@@ -111,6 +112,7 @@ describe('TEOEngine', () => {
         const expectedRemotePathSuffix = path.join('.teo_cache', 'remote_repos', expectedRepoName);
         expect(engine.gitAnalyzer.repoPath).toContain(expectedRemotePathSuffix);
         expect(FeatureMapper).toHaveBeenCalledWith(engine.gitAnalyzer.repoPath, remoteConfig.config);
+        expect(TestOrchestrator).toHaveBeenCalledWith(remoteConfig.config, engine.gitAnalyzer.repoPath);
 
     });
 

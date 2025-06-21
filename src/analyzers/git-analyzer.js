@@ -250,10 +250,18 @@ export class GitDiffAnalyzer {
    * Analyze a single file change
    */
   async analyzeFileChange(fileSummary, baseCommit, headCommit) {
-    const filePath = fileSummary.file
+    // fileSummary.file is relative to repo root. We want CodeChange to store absolute paths.
+    const absoluteFilePath = path.resolve(this.repoPath, fileSummary.file);
+    const absoluteOldPath = fileSummary.oldPath ? path.resolve(this.repoPath, fileSummary.oldPath) : null;
     
     // Determine change type
-    let changeType
+    let changeType;
+    // Check for renamed files. simple-git diffSummary doesn't explicitly mark renames,
+    // but they often appear as a delete of oldPath and add of newPath, or just newPath with oldPath hint.
+    // For now, rely on simple-git's implicit handling or enhance later if specific rename detection is needed.
+    // If fileSummary.file has a history (e.g. through --find-renames), oldPath might be populated.
+    // A true rename might be better represented by a specific ChangeType.RENAMED if summary provides it.
+    // Assuming simple-git's summary handles this by listing the new path.
     if (fileSummary.binary) {
       changeType = ChangeType.MODIFIED
     } else if (fileSummary.insertions > 0 && fileSummary.deletions === 0) {
@@ -265,21 +273,23 @@ export class GitDiffAnalyzer {
     }
     
     const change = new CodeChange({
-      filePath,
+      filePath: absoluteFilePath,
+      oldPath: absoluteOldPath, // Store absolute old path if present
       changeType,
       linesAdded: fileSummary.insertions,
       linesRemoved: fileSummary.deletions
-    })
+    });
     
     // Perform syntax-aware analysis if possible
     if (!fileSummary.binary && changeType !== ChangeType.DELETED) {
       try {
         await this.performSyntaxAnalysis(change, baseCommit, headCommit)
       } catch (error) {
+        // Log with the absolute path for clarity
         logger.debug('Syntax analysis failed for file', { 
-          filePath, 
+          filePath: absoluteFilePath,
           error: error.message 
-        })
+        });
       }
     }
     
@@ -498,12 +508,15 @@ export class GitDiffAnalyzer {
   /**
    * Get file content from specific commit
    */
-  async getFileContent(filePath, commit) {
+  async getFileContent(filePath, commit) { // filePath is expected to be absolute here
     try {
-      const content = await this.git.show([`${commit}:${filePath}`])
-      return content
+      // Convert absolute path to path relative to repo root for git commands
+      const relativePath = path.relative(this.repoPath, filePath);
+      const content = await this.git.show([`${commit}:${relativePath}`]);
+      return content;
     } catch (error) {
-      throw new Error(`Failed to get file content: ${error.message}`)
+      // Add context to error message, including which path failed (absolute for user, relative for debug)
+      throw new Error(`Failed to get file content for ${filePath} (relative: ${path.relative(this.repoPath, filePath)}) from commit ${commit}: ${error.message}`);
     }
   }
 

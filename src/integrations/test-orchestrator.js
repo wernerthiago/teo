@@ -7,18 +7,23 @@
 
 import logger from '../core/logger.js'
 import PlaywrightIntegration from './playwright-integration.js'
+import path from 'path'; // Import path for path.resolve if needed, though process.cwd() is absolute
 
 export class TestOrchestrator {
-  constructor(config = {}) {
-    this.config = config
-    this.integrations = new Map()
+  constructor(config = {}, actualRepoPath) {
+    this.config = config;
+    // Prioritize actualRepoPath, then config.repo_path, then cwd.
+    // actualRepoPath is expected to be an absolute path to the final repository location.
+    this.actualRepoPath = actualRepoPath || this.config.repo_path || process.cwd();
+    this.integrations = new Map();
     
     // Initialize supported integrations
-    this.initializeIntegrations()
+    this.initializeIntegrations();
     
     logger.info('TestOrchestrator initialized', {
-      supportedFrameworks: Array.from(this.integrations.keys())
-    })
+      supportedFrameworks: Array.from(this.integrations.keys()),
+      actualRepoPath: this.actualRepoPath
+    });
   }
 
   /**
@@ -29,8 +34,8 @@ export class TestOrchestrator {
     if (this.config.integrations?.playwright) {
       this.integrations.set('playwright', new PlaywrightIntegration({
         ...this.config.integrations.playwright,
-        projectRoot: this.config.repo_path || process.cwd()
-      }))
+        projectRoot: this.actualRepoPath // Use the determined actualRepoPath
+      }));
     }
   }
 

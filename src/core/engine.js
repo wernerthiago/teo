@@ -50,9 +50,8 @@ export class TEOEngine {
 
     // Initialize components that depend on the finalized gitAnalyzer.repoPath
     this.featureMapper = new FeatureMapper(this.gitAnalyzer.repoPath, config.config);
-    this.testOrchestrator = new TestOrchestrator(config.config);
-    // Assuming TestOrchestrator might also implicitly use repoPath via FeatureMapper or other means.
-    // If TestOrchestrator also needs repoPath directly, it should be passed or it should get it from FeatureMapper/config.
+    // Pass the finalized repoPath to TestOrchestrator
+    this.testOrchestrator = new TestOrchestrator(config.config, this.gitAnalyzer.repoPath);
 
     logger.info('TEOEngine asynchronous initialization completed.');
   }
