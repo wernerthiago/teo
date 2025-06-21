@@ -16,7 +16,7 @@ export class PlaywrightIntegration {
     this.testDir = config.testDir || 'tests'
     this.testPatterns = config.testPatterns || ['**/*.spec.js', '**/*.spec.ts']
     this.configFile = config.configFile || 'playwright.config.js'
-    this.projectRoot = config.projectRoot || process.cwd()
+    this.projectRoot = process.cwd()
     
     logger.info('PlaywrightIntegration initialized', {
       testDir: this.testDir,

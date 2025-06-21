@@ -220,7 +220,7 @@ class FileBasedStrategy extends BaseMappingStrategy {
   }
 
   matchesPatterns(filePath, patterns) {
-    return patterns.some(pattern => minimatch(filePath, pattern))
+    return patterns.some(pattern => minimatch(filePath, pattern, { dot: true }))
   }
 
   async resolveTestPatterns(patterns) {
