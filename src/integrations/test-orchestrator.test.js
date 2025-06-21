@@ -1,6 +1,7 @@
-import { TestOrchestrator } from './test-orchestrator';
+import { TestOrchestrator } from './test-orchestrator.js';
 import { PlaywrightIntegration } from './playwright-integration'; // To mock it
-import path from 'path'; // For path.join if needed, though not strictly for these tests
+import { jest } from '@jest/globals';
+
 
 // Mock PlaywrightIntegration
 // This mock will capture the config passed to PlaywrightIntegration's constructor

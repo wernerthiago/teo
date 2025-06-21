@@ -1,8 +1,9 @@
-import TEOEngine from './engine.js';
-import TEOConfig from './config.js';
-import GitDiffAnalyzer from '../analyzers/git-analyzer.js'; // Import to access the mock
-import FeatureMapper from '../mappers/feature-mapper.js'; // Import to check constructor calls
-import TestOrchestrator from '../integrations/test-orchestrator.js'; // Import to check constructor calls
+import { TEOEngine } from './engine.js';
+import { TEOConfig } from './config.js';
+import { GitDiffAnalyzer } from '../analyzers/git-analyzer.js'; // Import to access the mock
+import { FeatureMapper } from '../mappers/feature-mapper.js'; // Import to check constructor calls
+import { TestOrchestrator } from '../integrations/test-orchestrator.js'; // Import to check constructor calls
+import path from 'path';
 
 // --- Mocks ---
 // Mock GitDiffAnalyzer
@@ -17,28 +18,34 @@ const mockGitAnalyzerInstance = {
     repoPath: './mock-repo-path' // Default mock path, can be overridden by constructor args
 };
 jest.mock('../analyzers/git-analyzer.js', () => {
-    return jest.fn().mockImplementation((gitConfig, basePath) => {
-        // Allow repoPath to be influenced by constructor args for more realistic mocking if needed
-        mockGitAnalyzerInstance.repoPath = gitConfig?.repo_path || path.join(basePath, '.teo_cache', 'remote_repos', gitConfig?.remote_repository_url ? path.basename(gitConfig.remote_repository_url, '.git') : 'mock-local');
-        return mockGitAnalyzerInstance;
-    });
+    return {
+        GitDiffAnalyzer: jest.fn().mockImplementation((gitConfig, basePath) => {
+            // Allow repoPath to be influenced by constructor args for more realistic mocking if needed
+            mockGitAnalyzerInstance.repoPath = gitConfig?.repo_path || path.join(basePath, '.teo_cache', 'remote_repos', gitConfig?.remote_repository_url ? path.basename(gitConfig.remote_repository_url, '.git') : 'mock-local');
+            return mockGitAnalyzerInstance;
+        })
+    };
 });
 
 // Mock FeatureMapper
 jest.mock('../mappers/feature-mapper.js', () => {
-    return jest.fn().mockImplementation(() => ({
-        mapChangesToFeatures: jest.fn().mockResolvedValue([]),
-    }));
+    return {
+        FeatureMapper: jest.fn().mockImplementation(() => ({
+            mapChangesToFeatures: jest.fn().mockResolvedValue([]),
+        }))
+    };
 });
 
 // Mock TestOrchestrator
 jest.mock('../integrations/test-orchestrator.js', () => {
-    return jest.fn().mockImplementation(() => ({
-        selectTests: jest.fn().mockResolvedValue({ selectedTests: [], summary: {} }),
-        generateOutput: jest.fn().mockReturnValue(''),
-        validateAll: jest.fn().mockResolvedValue({}),
-        getAvailableFrameworks: jest.fn().mockReturnValue(['playwright'])
-    }));
+    return {
+        TestOrchestrator: jest.fn().mockImplementation(() => ({
+            selectTests: jest.fn().mockResolvedValue({ selectedTests: [], summary: {} }),
+            generateOutput: jest.fn().mockReturnValue(''),
+            validateAll: jest.fn().mockResolvedValue({}),
+            getAvailableFrameworks: jest.fn().mockReturnValue(['playwright'])
+        }))
+    };
 });
 
 // Helper to create a basic TEOConfig instance

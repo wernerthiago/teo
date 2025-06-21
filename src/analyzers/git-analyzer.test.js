@@ -1,14 +1,14 @@
 // Test structure based on the provided plan
-import GitDiffAnalyzer from './git-analyzer';
+import { GitDiffAnalyzer } from './git-analyzer.js';
 // TEOConfig might not be directly needed if we construct gitConfig objects manually for tests.
-// import { TEOConfig } from '../core/config';
+// import { TEOConfig } from '../core/config.js';
 import fs from 'fs-extra';
 import path from 'path';
 import { simpleGit } from 'simple-git';
 
 const PUBLIC_TEST_REPO_URL = 'https://github.com/git-fixtures/basic.git';
 // Define TEMP_BASE_DIR relative to __dirname for Jest execution context
-const TEMP_BASE_DIR = path.resolve(__dirname, 'test_temp_space_git_analyzer');
+const TEMP_BASE_DIR = path.resolve(process.cwd(), 'test_temp_space_git_analyzer');
 const REMOTE_REPOS_CACHE_BASE = path.resolve(TEMP_BASE_DIR, '.teo_cache'); // Base for .teo_cache
 const REMOTE_REPOS_CACHE_DIR = path.resolve(REMOTE_REPOS_CACHE_BASE, 'remote_repos');
 
