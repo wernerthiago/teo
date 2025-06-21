@@ -12,43 +12,63 @@ import TestOrchestrator from '../integrations/test-orchestrator.js'
 import logger from './logger.js'
 
 export class TEOEngine {
-  // Constructor is now async
-  async constructor(config) {
-    this.config = config
+  constructor(config) {
+    this.config = config;
     
     const gitConfig = config.get('git', {});
-    const basePath = config.get('repo_path', process.cwd()); // Used as fallback for local repo_path or base for temp remote clones
+    const basePath = config.get('repo_path', process.cwd());
 
-    // Initialize GitDiffAnalyzer
+    // Initialize components that don't require async setup or finalized repoPath
+    this.providerManager = new ProviderManager(config.get('ai_providers', {}));
+
+    // Initial GitDiffAnalyzer instantiation (constructor is synchronous)
     this.gitAnalyzer = new GitDiffAnalyzer(gitConfig, basePath);
 
-    // If remote repository is specified, initialize it
+    // Other components like featureMapper and testOrchestrator will be initialized in _initialize
+    // after gitAnalyzer.repoPath is confirmed (especially after potential remote clone)
+    this.featureMapper = null; // Initialize as null or with a temporary/dummy instance
+    this.testOrchestrator = null;
+
+    logger.info('TEOEngine synchronous constructor completed. Async initialization pending.');
+  }
+
+  async _initialize(config) {
+    const gitConfig = config.get('git', {});
+
+    // Perform async initialization for GitDiffAnalyzer if remote repo is configured
     if (gitConfig.remote_repository_url) {
       logger.info(`Initializing remote repository: ${gitConfig.remote_repository_url}`);
       try {
-        // this.gitAnalyzer.repoPath already points to the designated temporary local path
+        // this.gitAnalyzer.repoPath is the temporary path set by GitDiffAnalyzer's constructor
         await this.gitAnalyzer.initRemoteRepo(gitConfig.remote_repository_url, this.gitAnalyzer.repoPath);
         logger.info(`Remote repository initialized successfully at ${this.gitAnalyzer.repoPath}`);
       } catch (error) {
         logger.error(`Failed to initialize remote repository ${gitConfig.remote_repository_url}: ${error.message}`);
-        // Propagate the error to prevent TEOEngine from operating with a misconfigured gitAnalyzer
         throw new Error(`Failed to initialize remote repository: ${error.message}`);
       }
     }
 
-    // Initialize other components
-    // Note: featureMapper might need to be initialized after gitAnalyzer.repoPath is finalized (especially for remotes)
-    // For now, assuming FeatureMapper uses the repoPath from gitAnalyzer or can be updated if needed.
-    this.featureMapper = new FeatureMapper(this.gitAnalyzer.repoPath, config.config)
-    this.providerManager = new ProviderManager(config.get('ai_providers', {}))
-    this.testOrchestrator = new TestOrchestrator(config.config)
-    
-    logger.info('TEOEngine initialized', {
-      repoPath: this.gitAnalyzer.repoPath, // Use the potentially updated repoPath from gitAnalyzer
-      remote: !!gitConfig.remote_repository_url,
-      aiProviders: this.providerManager.getAvailableProviders(),
-      frameworks: this.testOrchestrator.getAvailableFrameworks()
-    })
+    // Initialize components that depend on the finalized gitAnalyzer.repoPath
+    this.featureMapper = new FeatureMapper(this.gitAnalyzer.repoPath, config.config);
+    this.testOrchestrator = new TestOrchestrator(config.config);
+    // Assuming TestOrchestrator might also implicitly use repoPath via FeatureMapper or other means.
+    // If TestOrchestrator also needs repoPath directly, it should be passed or it should get it from FeatureMapper/config.
+
+    logger.info('TEOEngine asynchronous initialization completed.');
+  }
+
+  static async create(config) {
+    const engine = new TEOEngine(config); // Calls synchronous constructor
+    await engine._initialize(config);     // Calls async initialization
+
+    logger.info('TEOEngine fully initialized and ready.', {
+      repoPath: engine.gitAnalyzer.repoPath,
+      remote: !!config.get('git.remote_repository_url'),
+      aiProviders: engine.providerManager.getAvailableProviders(),
+      // Ensure testOrchestrator is initialized before calling getAvailableFrameworks
+      frameworks: engine.testOrchestrator ? engine.testOrchestrator.getAvailableFrameworks() : []
+    });
+    return engine;
   }
 
   /**

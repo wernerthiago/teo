@@ -106,7 +106,7 @@ program
     try {
       // Load configuration
       const config = await TEOConfig.fromFile(globalOpts.config)
-      const engine = new TEOEngine(config)
+      const engine = await TEOEngine.create(config)
       
       // Perform analysis
       const result = await engine.analyze(options.base, options.head, {
@@ -165,7 +165,7 @@ program
     
     try {
       const config = await TEOConfig.fromFile(globalOpts.config)
-      const engine = new TEOEngine(config)
+      const engine = await TEOEngine.create(config)
       
       const validation = await engine.validate()
       
@@ -208,7 +208,7 @@ program
     
     try {
       const config = await TEOConfig.fromFile(globalOpts.config)
-      const engine = new TEOEngine(config)
+      const engine = await TEOEngine.create(config)
       
       const result = await engine.analyze(options.base, options.head, {
         useAI: options.ai,
