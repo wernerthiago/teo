@@ -64,7 +64,14 @@ Create `teo-config.yaml`:
 
 ```yaml
 project_name: my-project
-repo_path: '.'
+repo_path: . # Used if remote_repository_url is not set
+
+git:
+  default_branch: main
+  # remote_repository_url: 'https://github.com/your-org/your-repo.git' # Uncomment to use a remote repo
+  ignore_patterns:
+    - "*.log"
+    - "node_modules/**"
 
 feature_detection:
   strategies:
@@ -111,6 +118,8 @@ ai_providers:
     temperature: 0.1
     model: ""
 ```
+
+The `git` section allows for specifying local repository paths or even a `remote_repository_url` for TEO to clone and analyze. For detailed information on Git configuration, see the [Complete Guide](docs/complete-guide.md#git-configuration).
 
 > Note that in the example above it is set for Azure OpenAI, but TEO supports others providers.
 
