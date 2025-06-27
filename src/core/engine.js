@@ -84,9 +84,9 @@ export class TEOEngine {
       logger.info('Starting TEO analysis', { baseRef, headRef, options })
       
       // Step 1: Analyze git diff
-      if (!baseRef && !headRef && !options.last24h) {
-        logger.error('Base and head references must be provided, or use last24h option');
-        throw new Error('Base and head references must be provided, or use last24h option');
+      if (!options.last24h && (!baseRef || !headRef)) {
+        logger.error('Both baseRef and headRef must be provided when last24h option is not set');
+        throw new Error('Both baseRef and headRef must be provided when last24h option is not set');
       }
       if (options.last24h) {
         logger.info('Using last 24 hours commit for analysis');
