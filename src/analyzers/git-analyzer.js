@@ -569,6 +569,27 @@ export class GitDiffAnalyzer {
       throw error
     }
   }
+
+  /**
+   * Get last commit within the 24 hours ago
+   */
+  async getLastCommitWithin24Hours() {
+    try {
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000)
+      const sinceIso = since.toISOString()
+      const log = await this.git.log({ '--before': sinceIso, n: 1 })
+      if (log.total > 0) {
+        return log.latest.hash
+      } else {
+        // If no commit before 24h ago, return the first commit in history
+        const allLog = await this.git.log({ n: 1, '--reverse': null })
+        return allLog.latest ? allLog.latest.hash : null
+      }
+    } catch (error) {
+      logger.error('Failed to get last commit within 24 hours', { error: error.message })
+      throw error
+    }
+  }
 }
 
 export default GitDiffAnalyzer

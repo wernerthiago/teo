@@ -15,14 +15,17 @@ import path from 'path'
 import TEOEngine from '../core/engine.js'
 import TEOConfig from '../core/config.js'
 import logger from '../core/logger.js'
+import pkg from '../../package.json' assert { type: 'json' }
 
 const program = new Command()
 
 // Global options
+// Read version from package.json
+
 program
   .name('teo')
   .description('Test Execution Optimizer - Intelligent test selection for modern development')
-  .version('2.0.0')
+  .version(pkg.version)
   .option('-v, --verbose', 'Enable verbose logging')
   .option('-q, --quiet', 'Suppress non-essential output')
   .option('--config <path>', 'Path to configuration file', 'teo-config.yaml')
@@ -82,8 +85,9 @@ program
 program
   .command('analyze')
   .description('Analyze code changes and select relevant tests')
-  .requiredOption('--base <ref>', 'Base git reference (e.g., HEAD~1, main)')
-  .requiredOption('--head <ref>', 'Head git reference (e.g., HEAD, feature-branch)')
+  .option('--base <ref>', 'Base git reference', false)
+  .option('--head <ref>', 'Head git reference', false)
+  .option('--last-24h', 'Gets the difference between the last commit and the last 24h commit', false)
   .option('--framework <name>', 'Test framework to use', 'playwright')
   .option('--output <format>', 'Output format (paths|script|json|table|playwright-args)', 'table')
   .option('--no-ai', 'Disable AI-enhanced analysis')
@@ -102,19 +106,43 @@ program
     }
     
     const spinner = ora('Analyzing code changes...', { isSilent: globalOpts.quiet }).start()
-    
+
     try {
+      // Validation: Either --last-24h or both --base and --head must be provided, but not both
+      if (options.last24h) {
+        if (options.base || options.head) {
+          spinner.fail('Cannot use --last-24h with --base or --head. Use either --last-24h or both --base and --head.')
+          process.exit(1)
+        }
+      } else {
+        if (!options.base || !options.head) {
+          spinner.fail('You must provide both --base and --head, or use --last-24h.')
+          process.exit(1)
+        }
+      }
       // Load configuration
       const config = await TEOConfig.fromFile(globalOpts.config)
       const engine = await TEOEngine.create(config)
       
       // Perform analysis
-      const result = await engine.analyze(options.base, options.head, {
+      let analyzeOptions = {
+        last24h: options.last24h,
         useAI: options.ai,
         aiProvider: options.aiProvider,
         framework: options.framework,
         confidenceThreshold: options.confidence
-      })
+      }
+
+      let base = options.base
+      let head = options.head
+
+      if (options.last24h) {
+        // Let engine handle last24h logic, base/head may be undefined
+        base = undefined
+        head = undefined
+      }
+
+      const result = await engine.analyze(base, head, analyzeOptions)
       
       spinner.succeed('Analysis completed')
       
@@ -197,37 +225,63 @@ program
 program
   .command('script')
   .description('Generate executable test script')
-  .requiredOption('--base <ref>', 'Base git reference')
-  .requiredOption('--head <ref>', 'Head git reference')
+  .option('--base <ref>', 'Base git reference')
+  .option('--head <ref>', 'Head git reference')
+  .option('--last-24h', 'Gets the difference between the last commit and the last 24h commit', false)
   .option('--framework <name>', 'Test framework to use', 'playwright')
   .option('--output <file>', 'Output script file', 'run-selected-tests.sh')
   .option('--no-ai', 'Disable AI-enhanced analysis')
   .action(async (options) => {
     const globalOpts = program.opts()
     const spinner = ora('Generating test execution script...', { isSilent: globalOpts.quiet }).start()
-    
+
     try {
+      // Validation: Either --last-24h or both --base and --head must be provided, but not both
+      if (options.last24h) {
+        if (options.base || options.head) {
+          spinner.fail('Cannot use --last-24h with --base or --head. Use either --last-24h or both --base and --head.')
+          process.exit(1)
+        }
+      } else {
+        if (!options.base || !options.head) {
+          spinner.fail('You must provide both --base and --head, or use --last-24h.')
+          process.exit(1)
+        }
+      }
+
       const config = await TEOConfig.fromFile(globalOpts.config)
       const engine = await TEOEngine.create(config)
-      
-      const result = await engine.analyze(options.base, options.head, {
+
+      let analyzeOptions = {
         useAI: options.ai,
-        framework: options.framework
-      })
-      
+        framework: options.framework,
+        last24h: options.last24h
+      }
+
+      let base = options.base
+      let head = options.head
+
+      if (options.last24h) {
+        // Let engine handle last24h logic, base/head may be undefined
+        base = undefined
+        head = undefined
+      }
+
+      const result = await engine.analyze(base, head, analyzeOptions)
+
       const script = engine.generateOutput(result, 'script')
       await fs.writeFile(options.output, script)
       await fs.chmod(options.output, 0o755) // Make executable
-      
+
       spinner.succeed(`Executable script generated: ${options.output}`)
-      
+
       console.log(chalk.green('\n✅ Test execution script created!'))
       console.log(chalk.blue(`\n🚀 Run with: ./${options.output}`))
-      
+
       if (!globalOpts.quiet) {
         displaySummary(result)
       }
-      
+
     } catch (error) {
       spinner.fail('Script generation failed')
       console.error(chalk.red('Error:'), error.message)

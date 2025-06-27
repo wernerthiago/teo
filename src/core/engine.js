@@ -77,13 +77,27 @@ export class TEOEngine {
    * @param {Object} options - Analysis options
    * @returns {Promise<Object>} Analysis result with selected tests
    */
-  async analyze(baseRef, headRef, options = {}) {
+  async analyze(baseRef=null, headRef=null, options = {}) {
     const startTime = Date.now()
     
     try {
       logger.info('Starting TEO analysis', { baseRef, headRef, options })
       
       // Step 1: Analyze git diff
+      if (!options.last24h && (!baseRef || !headRef)) {
+        logger.error('Both baseRef and headRef must be provided when last24h option is not set');
+        throw new Error('Both baseRef and headRef must be provided when last24h option is not set');
+      }
+      if (options.last24h) {
+        logger.info('Using last 24 hours commit for analysis');
+        const lastCommit = await this.gitAnalyzer.getLastCommitWithin24Hours();
+        if (!lastCommit) {
+          throw new Error('No commits found in the last 24 hours');
+        }
+        logger.info('Last commit found', { commit: lastCommit });
+        baseRef = lastCommit; // Use the last commit as base
+        headRef = 'HEAD'; // Use current HEAD as head
+      }
       const diffAnalysis = await this.gitAnalyzer.analyzeDiff(baseRef, headRef)
       logger.info('Git diff analysis completed', {
         filesChanged: diffAnalysis.changes?.length || 0,
