@@ -1,6 +1,6 @@
 {
   "name": "@wernerthiago/teo",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Test Execution Optimizer",
   "main": "src/cli/index.js",
   "type": "module",

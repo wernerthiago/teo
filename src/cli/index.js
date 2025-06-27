@@ -15,14 +15,17 @@ import path from 'path'
 import TEOEngine from '../core/engine.js'
 import TEOConfig from '../core/config.js'
 import logger from '../core/logger.js'
+import pkg from '../../package.json' assert { type: 'json' }
 
 const program = new Command()
 
 // Global options
+// Read version from package.json
+
 program
   .name('teo')
   .description('Test Execution Optimizer - Intelligent test selection for modern development')
-  .version('2.0.0')
+  .version(pkg.version)
   .option('-v, --verbose', 'Enable verbose logging')
   .option('-q, --quiet', 'Suppress non-essential output')
   .option('--config <path>', 'Path to configuration file', 'teo-config.yaml')
