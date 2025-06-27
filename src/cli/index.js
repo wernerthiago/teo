@@ -104,23 +104,22 @@ program
     if (globalOpts.quiet && !globalOpts.verbose) {
       logger.level = 'quiet'
     }
-
-    // Validation: Either --last-24h or both --base and --head must be provided, but not both
-    if (options.last24h) {
-      if (options.base || options.head) {
-        spinner.fail('Cannot use --last-24h with --base or --head. Use either --last-24h or both --base and --head.')
-        process.exit(1)
-      }
-    } else {
-      if (!options.base || !options.head) {
-        spinner.fail('You must provide both --base and --head, or use --last-24h.')
-        process.exit(1)
-      }
-    }
     
     const spinner = ora('Analyzing code changes...', { isSilent: globalOpts.quiet }).start()
-    
+
     try {
+      // Validation: Either --last-24h or both --base and --head must be provided, but not both
+      if (options.last24h) {
+        if (options.base || options.head) {
+          spinner.fail('Cannot use --last-24h with --base or --head. Use either --last-24h or both --base and --head.')
+          process.exit(1)
+        }
+      } else {
+        if (!options.base || !options.head) {
+          spinner.fail('You must provide both --base and --head, or use --last-24h.')
+          process.exit(1)
+        }
+      }
       // Load configuration
       const config = await TEOConfig.fromFile(globalOpts.config)
       const engine = await TEOEngine.create(config)
